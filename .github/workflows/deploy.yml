@@ -1,0 +1,62 @@
+name: deploy
+# Live evals against the Foundry model are the release gate: if they fail, nothing is deployed.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  id-token: write   # OIDC federation to Azure, no stored secrets
+  contents: read
+
+env:
+  IMAGE: ${{ vars.ACR_LOGIN_SERVER }}/foundry-ontology-agent:${{ github.sha }}
+
+jobs:
+  live-evals:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv pip install --system -e ".[dev]"
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Live eval gate
+        env:
+          FOUNDRY_PROJECT_ENDPOINT: ${{ vars.FOUNDRY_PROJECT_ENDPOINT }}
+          FOUNDRY_MODEL_DEPLOYMENT: ${{ vars.FOUNDRY_MODEL_DEPLOYMENT }}
+        run: python evals/run_evals.py --live
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results-live
+          path: evals/results/
+
+  deploy:
+    needs: live-evals
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - name: Build and push image
+        run: az acr build --registry "${{ vars.ACR_NAME }}" --image "foundry-ontology-agent:${{ github.sha }}" .
+      - name: Deploy infrastructure and app
+        run: |
+          az deployment group create \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --template-file infra/main.bicep \
+            --parameters containerImage="$IMAGE" \
+                         registryServer="${{ vars.ACR_LOGIN_SERVER }}" \
+                         foundryProjectEndpoint="${{ vars.FOUNDRY_PROJECT_ENDPOINT }}" \
+                         modelDeployment="${{ vars.FOUNDRY_MODEL_DEPLOYMENT }}"
