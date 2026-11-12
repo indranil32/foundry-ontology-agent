@@ -1,0 +1,53 @@
+[project]
+name = "foundry-ontology-agent"
+version = "0.1.0"
+description = "Multi-agent property-operations assistant on Microsoft Foundry, reaching an ontology through MCP with human approval for actions."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "agent-framework-core>=1.25",
+    "agent-framework-foundry>=1.16",
+    "mcp>=2.3",
+    "tenacity>=8.2",  # required by Agent Framework MCP tools for reconnection
+    "azure-identity>=1.27",
+    "azure-monitor-opentelemetry>=1.6",
+    "opentelemetry-api>=1.30",
+    "pydantic>=2.8",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.24", "httpx>=0.27", "ruff>=0.6", "mypy>=1.11", "types-PyYAML"]
+
+[project.scripts]
+ontology-agent = "ontology_agent.app:main"
+ontology-mcp = "ontology_agent.mcp_server:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ontology_agent"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::FutureWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+files = ["src"]
