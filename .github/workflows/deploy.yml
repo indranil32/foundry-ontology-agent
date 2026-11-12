@@ -14,6 +14,8 @@ env:
 
 jobs:
   live-evals:
+    # Skipped until Azure is configured (repository variable AZURE_CLIENT_ID set).
+    if: ${{ vars.AZURE_CLIENT_ID != '' }}
     runs-on: ubuntu-latest
     environment: production
     steps:
