@@ -23,7 +23,8 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.12"
-      - run: uv pip install --system -e ".[dev]"
+          activate-environment: true
+      - run: uv pip install -e ".[dev]"
       - uses: azure/login@v2
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
